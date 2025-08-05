@@ -1,0 +1,25 @@
+FROM public.ecr.aws/docker/library/python:3.9-slim
+
+# Create a non-root user
+RUN useradd -m -s /bin/bash app
+
+# Set up working directory
+WORKDIR /app
+
+# Copy the application files
+COPY . .
+
+# Give the non-root user ownership of the application directory
+RUN chown -R app:app /app
+
+# Switch to the non-root user
+USER app
+
+# Set PATH to include user's local bin directory
+ENV PATH="$HOME/.local/bin:$PATH"
+
+# Install dependencies
+RUN pip install --no-cache-dir --user -r insecure-app/requirements.txt
+
+# Set the working directory to the insecure-app directory
+WORKDIR /app/insecure-app

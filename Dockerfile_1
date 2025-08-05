@@ -1,0 +1,17 @@
+FROM public.ecr.aws/docker/library/eclipse-temurin:11-jdk-jammy
+
+WORKDIR /app
+
+# Copy the Java project files
+COPY insecure-java/ .
+
+# Create a non-root user
+RUN useradd -m -s /bin/bash app && \
+    chown -R app:app /app
+
+# Set the user
+USER app
+ENV PATH="$HOME/.local/bin:$PATH"
+
+# Gradle wrapper may have incorrect permissions after copying
+RUN chmod +x ./gradlew
