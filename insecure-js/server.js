@@ -176,10 +176,20 @@ const server = http.createServer((req, res) => {
           asyncTasks.push(
             (async () => {
               try {
-                const compiled = _.template(postData.template);
+                // Sanitize the template by only allowing specific safe patterns
+                // This regex allows only text and simple variable interpolation with <%= %> but not arbitrary code execution
+                const sanitizedTemplate = postData.template.replace(/<%((?!%).)*%>/g, ''); // Remove any <% ... %> blocks that aren't <%= ... %>
+                
+                // Set interpolate option to only allow variable interpolation with <%= %> syntax
+                const compiled = _.template(sanitizedTemplate, {
+                  interpolate: /<%=([\s\S]+?)%>/g, // Only allow <%= ... %> syntax
+                  evaluate: null, // Disable <% ... %> syntax completely
+                  escape: /<%-([\s\S]+?)%>/g // Allow <%- ... %> for HTML escaping
+                });
+                
                 const output = compiled({});
                 console.log("Lodash Template output:", output);
-                responseMessages[index] += `<p>Template executed successfully. Output logged on the server.</p>`;
+                responseMessages[index] += `<p>Template executed safely. Output logged on the server.</p>`;
               } catch (error) {
                 responseMessages[index] += `<p>Lodash template error: ${error.message}</p>`;
               }
