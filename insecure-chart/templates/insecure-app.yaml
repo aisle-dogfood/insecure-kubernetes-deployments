@@ -1,4 +1,22 @@
 ---
+# AWS credentials Secret
+# NOTE: In production environments, this Secret should ideally be managed separately 
+# from the Helm chart for better security practices. This is included here for simplicity.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Values.insecureApp.awsCredentials.secretName | default "aws-credentials" }}
+  namespace: {{ .Values.insecureApp.namespace }}
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+type: Opaque
+data:
+  # These are placeholder values that should be overridden during deployment
+  # Do not store actual credentials in this template
+  aws-access-key-id: {{ .Values.aws.accessKeyId | default "" | b64enc | quote }}
+  aws-secret-access-key: {{ .Values.aws.secretAccessKey | default "" | b64enc | quote }}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -26,9 +44,15 @@ spec:
         - name: SCRIPT_NAME
           value: /app
         - name: AWS_ACCESS_KEY_ID
-          value: AKIA2JAPX77RGLB664VE
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.insecureApp.awsCredentials.secretName | default "aws-credentials" }}
+              key: aws-access-key-id
         - name: AWS_SECRET_ACCESS_KEY
-          value: v5xpjkWYoy45fGKFSMajSn+sqs22WI2niacX9yO5
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.insecureApp.awsCredentials.secretName | default "aws-credentials" }}
+              key: aws-secret-access-key
         securityContext:
           privileged: true
         volumeMounts:                   
@@ -54,45 +78,15 @@ metadata:
     app.kubernetes.io/managed-by: {{ .Release.Service }}
     app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
-  type: NodePort
   selector:
-    app: insecure-app
+    app: {{ .Values.insecureApp.appName }}
   ports:
   - name: http
-    port: 8080
-    targetPort: 8080
+    port: {{ .Values.insecureApp.ports.http }}
+    targetPort: {{ .Values.insecureApp.ports.http }}
   - name: ssh
-    port: 22
-    targetPort: 22
----
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: insecure-app-role
-  labels:
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
-rules:
-- apiGroups: [""]
-  resources: ["pods", "serviceaccounts", "serviceaccounts/token"]
-  verbs: ["*"]
----
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: insecure-app-role-binding
-  labels:
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
-subjects:
-- kind: ServiceAccount
-  name: insecure-app-sa
-  namespace: {{ .Values.insecureApp.namespace }}
-  apiGroup: ""
-roleRef:
-  kind: ClusterRole
-  name: insecure-app-role
-  apiGroup: ""
+    port: {{ .Values.insecureApp.ports.ssh }}
+    targetPort: {{ .Values.insecureApp.ports.ssh }}
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -103,28 +97,57 @@ metadata:
     app.kubernetes.io/managed-by: {{ .Release.Service }}
     app.kubernetes.io/instance: {{ .Release.Name }}
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: insecure-app-admin
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+subjects:
+- kind: ServiceAccount
+  name: insecure-app-sa
+  namespace: {{ .Values.insecureApp.namespace }}
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: insecure-app-data
+  namespace: {{ .Values.insecureApp.namespace }}
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: standard
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: insecure-app-ingress
-  namespace: insecure-app
+  name: insecure-app
+  namespace: {{ .Values.insecureApp.namespace }}
   labels:
     app.kubernetes.io/managed-by: {{ .Release.Service }}
     app.kubernetes.io/instance: {{ .Release.Name }}
   annotations:
+    kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/rewrite-target: /$1
-    nginx.ingress.kubernetes.io/use-regex: "true"
-    meta.helm.sh/release-name: {{ .Release.Name }}
-    meta.helm.sh/release-namespace: {{ .Release.Namespace }}
 spec:
-  ingressClassName: nginx
   rules:
   - http:
       paths:
       - path: /app/?(.*)
-        pathType: ImplementationSpecific
+        pathType: Prefix
         backend:
           service:
             name: insecure-app
             port:
-              number: 8080
+              number: {{ .Values.insecureApp.ports.http }}
