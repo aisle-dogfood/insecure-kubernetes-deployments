@@ -8,8 +8,12 @@ services:
     image: confusedcrib/insecure-app:latest
     ports:
       - "8080:8080"  # Changed from 5000 to match README
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock  # Needed if app interacts with Docker
+# Removed Docker socket mount for security reasons
+# The Docker socket (/var/run/docker.sock) should not be mounted as it gives container root access to the host
+# Vulnerability name: yaml.docker-compose.security.exposing-docker-socket-volume.exposing-docker-socket-volume
+# You are an experienced application security auditor. You are provided with (1) code repository and (2) CVE description.
+# Your goal is to find and fix the vulnerability, by patching the vulnerable code.
+# Fix should effectively mitigate the CVE vulnerability and prevents any potential exploitation, while preserving the original functionality of the code!
 
   insecure-java:
     build:
