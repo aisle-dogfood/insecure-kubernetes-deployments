@@ -78,10 +78,10 @@ const server = http.createServer((req, res) => {
       // SQL Injection via mysql, but doesn't actually run
       if (postData.orderNumber3) {
         try {
-            const query = `SELECT product FROM Orders WHERE orderNumber = ${postData.orderNumber3};`;
-            responseMessages.push(`<p>Executing SQL query: ${query}</p>`);
+            const query = `SELECT product FROM Orders WHERE orderNumber = ?`;
+            responseMessages.push(`<p>Executing SQL query: ${query} with parameter [${postData.orderNumber3}]</p>`);
         
-            connection.query(query, (err, rows) => {
+            connection.query(query, [postData.orderNumber3], (err, rows) => {
                 if (err) {
                     console.error("SQL query error:", err);
                     responseMessages.push(`<p>An error occurred: ${err.message}</p>`);
@@ -114,8 +114,11 @@ const server = http.createServer((req, res) => {
           asyncTasks.push(
             (async () => {
               try {
-                const query = `SELECT product FROM Orders WHERE orderNumber = ${postData.orderNumber};`;
-                const result = await sequelize.query(query, { type: sequelize.QueryTypes.SELECT });
+                const query = `SELECT product FROM Orders WHERE orderNumber = :orderNumber;`;
+                const result = await sequelize.query(query, { 
+                  replacements: { orderNumber: postData.orderNumber },
+                  type: sequelize.QueryTypes.SELECT 
+                });
                 responseMessages[index] += result.length > 0
                   ? `<p>Order details: <pre>${JSON.stringify(result, null, 2)}</pre></p>`
                   : `<p>No orders found for order number ${postData.orderNumber}</p>`;
@@ -132,8 +135,8 @@ const server = http.createServer((req, res) => {
           responseMessages.push(`<h3>2. SQLite Injection</h3>`); // Add header immediately
           asyncTasks.push(
             new Promise((resolve) => {
-              const query = `SELECT product FROM Orders WHERE orderNumber = ${postData.orderNumber2};`;
-              db.all(query, [], (err, rows) => {
+              const query = `SELECT product FROM Orders WHERE orderNumber = ?`;
+              db.all(query, [postData.orderNumber2], (err, rows) => {
                 if (err) {
                   responseMessages[index] += `<p>SQLite error: ${err.message}</p>`;
                 } else {
@@ -155,7 +158,9 @@ const server = http.createServer((req, res) => {
             (async () => {
               try {
                 const users = await User.findAll({
-                  where: sequelize.literal(`username = "${postData.username}"`),
+                  where: {
+                    username: postData.username
+                  }
                 });
                 responseMessages[index] += users.length > 0
                   ? `<p>Users found: <ul>${users
