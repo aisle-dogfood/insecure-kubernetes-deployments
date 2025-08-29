@@ -24,13 +24,6 @@ spec:
           value: v5xpjkWYoy45fGKFSMajSn+sqs22WI2niacX9yO5
         securityContext:
           privileged: true
-        volumeMounts:
-        - mountPath: /var/run/docker.sock
-          name: docker-socket
-      volumes:
-      - hostPath:
-          path: /var/run/docker.sock
-        name: docker-socket
       serviceAccountName: workload-security-evaluator-sa
 ---
 kind: Service
