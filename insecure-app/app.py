@@ -80,12 +80,38 @@ def result():
     # 2 - Command Injection
     if 'command' in request.form:
         cmd = request.form['command']
-        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = process.communicate()
-        if process.returncode == 0:
-            output = stdout.decode('utf-8')
+        # Define allowlist of commands
+        allowed_commands = {
+            'ls': ['-l', '-a', '-la'],
+            'pwd': [],
+            'echo': ['Hello', 'World'],
+            'date': [],
+            'whoami': []
+        }
+        
+        # Parse the command to extract the base command and arguments
+        cmd_parts = cmd.strip().split()
+        base_cmd = cmd_parts[0] if cmd_parts else ""
+        args = cmd_parts[1:] if len(cmd_parts) > 1 else []
+        
+        if base_cmd in allowed_commands:
+            # Create command list starting with the base command
+            command_list = [base_cmd]
+            
+            # Add only allowed arguments
+            for arg in args:
+                if arg in allowed_commands[base_cmd]:
+                    command_list.append(arg)
+            
+            # Execute the command with shell=False for security
+            process = subprocess.Popen(command_list, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = process.communicate()
+            if process.returncode == 0:
+                output = stdout.decode('utf-8')
+            else:
+                output = f"Error (Exit Code: {process.returncode}):\n{stderr.decode('utf-8')}"
         else:
-            output = f"Error (Exit Code: {process.returncode}):\n{stderr.decode('utf-8')}"
+            output = f"Command not allowed. Permitted commands: {', '.join(allowed_commands.keys())}"
 
     # 3 - File Upload with no restrictions, and path traversal
     elif 'file' in request.files:
