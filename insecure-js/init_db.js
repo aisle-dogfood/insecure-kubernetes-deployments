@@ -4,6 +4,7 @@ const sequelize = new Sequelize("sqlite:./data.db", {
   dialectOptions: {
     multipleStatements: true, // Enable multiple statements
   },
+  logging: console.log, // Add logging to handle deprecation warnings
 });
 
 // Define User model

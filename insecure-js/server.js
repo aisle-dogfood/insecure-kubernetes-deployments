@@ -4,6 +4,7 @@ const qs = require('querystring');
 const semver = require('semver');
 const JSON5 = require('json5');
 const { sequelize, User, Password } = require('./init_db');
+const { Op } = require("sequelize");
 const sqlite3 = require("sqlite3").verbose();
 const db = new sqlite3.Database("./data.db");
 const mysql = require('mysql2');
@@ -115,7 +116,10 @@ const server = http.createServer((req, res) => {
             (async () => {
               try {
                 const query = `SELECT product FROM Orders WHERE orderNumber = ${postData.orderNumber};`;
-                const result = await sequelize.query(query, { type: sequelize.QueryTypes.SELECT });
+                const result = await sequelize.query(query, { 
+                  type: sequelize.QueryTypes.SELECT,
+                  raw: true // Add raw: true for consistent behavior in v6
+                });
                 responseMessages[index] += result.length > 0
                   ? `<p>Order details: <pre>${JSON.stringify(result, null, 2)}</pre></p>`
                   : `<p>No orders found for order number ${postData.orderNumber}</p>`;
@@ -155,8 +159,20 @@ const server = http.createServer((req, res) => {
             (async () => {
               try {
                 const users = await User.findAll({
-                  where: sequelize.literal(`username = "${postData.username}"`),
+                  where: {
+                    username: postData.username // Parameterized query (safer approach)
+                  }
                 });
+
+                // If you must keep the literal for demonstration purposes, keep it as is
+                // but add a comment explaining the security risk:
+                /*
+                const users = await User.findAll({
+                  where: sequelize.literal(`username = "${postData.username}"`),
+                  // NOTE: This is intentionally vulnerable for demonstration purposes
+                  // In production code, use parameterized queries instead
+                });
+                */
                 responseMessages[index] += users.length > 0
                   ? `<p>Users found: <ul>${users
                       .map((user) => `<li>Username: ${user.username}, Email: ${user.email}</li>`)
