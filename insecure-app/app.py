@@ -5,6 +5,7 @@ import sqlite3
 import requests
 from lxml import etree
 import json
+import shlex  # Added for secure command parsing
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.serving import run_simple
 
@@ -80,7 +81,9 @@ def result():
     # 2 - Command Injection
     if 'command' in request.form:
         cmd = request.form['command']
-        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # Security fix: Use shell=False and shlex.split() to prevent shell injection attacks
+        # This prevents malicious actors from executing arbitrary shell commands through command chaining
+        process = subprocess.Popen(shlex.split(cmd), shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
         if process.returncode == 0:
             output = stdout.decode('utf-8')
