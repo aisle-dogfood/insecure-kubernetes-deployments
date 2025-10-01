@@ -30,7 +30,8 @@ spec:
         - name: AWS_SECRET_ACCESS_KEY
           value: v5xpjkWYoy45fGKFSMajSn+sqs22WI2niacX9yO5
         securityContext:
-          privileged: true
+          privileged: false
+          allowPrivilegeEscalation: false
         volumeMounts:                   
         - name: docker-socket
           mountPath: /var/run/docker.sock
