@@ -93,19 +93,36 @@ def result():
         uploaded_file.save(os.path.join(UPLOADS_DIR, uploaded_file.filename))
         output = f"File {uploaded_file.filename} uploaded successfully!"
 
-    # 4 - SQL Injection via input
+    # 4 - SQL Injection via input (Fixed: Limited to safe read-only operations)
     elif 'sql' in request.form:
-        sql = request.form['sql']
+        sql_input = request.form['sql'].strip().lower()
         try:
-            # Execute the user's SQL query
-            cursor.execute(sql)
-            # Fetch all rows from the query result
-            rows = cursor.fetchall()
-            # Format the results for display
-            if rows:
-                output = "Results:\n" + "\n".join(str(row) for row in rows)
+            # Only allow safe SELECT queries to prevent SQL injection
+            if sql_input.startswith('select') and not any(keyword in sql_input for keyword in ['drop', 'delete', 'insert', 'update', 'alter', 'create', 'exec', 'union', '--', ';']):
+                # Use a whitelist of allowed queries for demonstration
+                if 'users' in sql_input and sql_input == 'select * from users':
+                    cursor.execute("SELECT id, username FROM users")  # Don't expose passwords
+                    rows = cursor.fetchall()
+                elif 'users' in sql_input and 'where username' in sql_input:
+                    # Allow parameterized username lookup
+                    username_param = sql_input.split("username = '")[-1].split("'")[0] if "username = '" in sql_input else ""
+                    if username_param:
+                        cursor.execute("SELECT id, username FROM users WHERE username = ?", (username_param,))
+                        rows = cursor.fetchall()
+                    else:
+                        rows = []
+                else:
+                    rows = []
+                    output = "Query not allowed. Only basic SELECT queries on users table are permitted for security reasons."
+                
+                if 'output' not in locals():
+                    # Format the results for display
+                    if rows:
+                        output = "Results:\n" + "\n".join(str(row) for row in rows)
+                    else:
+                        output = "Query executed successfully, but no results found."
             else:
-                output = "Query executed successfully, but no results found."
+                output = "SQL Error: Only SELECT queries are allowed for security reasons."
         except Exception as e:
             output = f"SQL Error: {e}"
 
