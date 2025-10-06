@@ -7,6 +7,8 @@ from lxml import etree
 import json
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.serving import run_simple
+from urllib.parse import urlparse
+import ipaddress
 
 # Example hardcoded AWS credentials (sensitive data leakage)
 aws_access_key_id = 'AKIA2JAPX77RGLB664VE'
@@ -24,6 +26,44 @@ IS_LOCAL = os.environ.get('FLASK_ENV') == 'development'
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(APP_DIR, 'data', 'tutorial.db')
 UPLOADS_DIR = os.path.join(APP_DIR, 'data', 'uploads')
+
+# SSRF protection: allowlist of allowed hosts and schemes
+ALLOWED_SCHEMES = {'http', 'https'}
+ALLOWED_HOSTS = {
+    'httpbin.org',
+    'jsonplaceholder.typicode.com',
+    'api.github.com'
+}
+
+def is_safe_url(url):
+    """
+    Validate URL to prevent SSRF attacks.
+    Returns True if URL is safe to request, False otherwise.
+    """
+    try:
+        parsed = urlparse(url)
+        
+        # Check if scheme is allowed
+        if parsed.scheme.lower() not in ALLOWED_SCHEMES:
+            return False
+        
+        # Check if host is in allowlist
+        if parsed.hostname not in ALLOWED_HOSTS:
+            return False
+        
+        # Additional check: prevent access to private IP ranges
+        try:
+            ip = ipaddress.ip_address(parsed.hostname)
+            # Block private, loopback, link-local, and multicast addresses
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast:
+                return False
+        except ValueError:
+            # hostname is not an IP address, which is fine
+            pass
+        
+        return True
+    except Exception:
+        return False
 
 def init_db():
     # Create data and uploads directories if they don't exist
@@ -125,24 +165,30 @@ def result():
         except Exception as e:
             output = f"XML Parsing Error: {e}"
 
-    # 7 - Server-Side Request Forgery (SSRF)
+    # 7 - Server-Side Request Forgery (SSRF) - FIXED
     elif 'url' in request.form:
         url = request.form['url']
-        try:
-            # Get headers and data from form if provided
-            headers = {}
-            if 'headers' in request.form:
-                headers = json.loads(request.form['headers'])
-            
-            data = None
-            if 'data' in request.form:
-                data = request.form['data']
-            
-            # Use POST method and handle data
-            response = requests.post(url, headers=headers, data=data, verify=False)
-            output = f"SSRF Response: {response.text[:200]}"
-        except Exception as e:
-            output = f"SSRF Error: {e}"
+        
+        # Validate URL to prevent SSRF attacks
+        if not is_safe_url(url):
+            output = "SSRF Error: URL not allowed. Only requests to approved external services are permitted."
+        else:
+            try:
+                # Get headers and data from form if provided
+                headers = {}
+                if 'headers' in request.form:
+                    headers = json.loads(request.form['headers'])
+                
+                data = None
+                if 'data' in request.form:
+                    data = request.form['data']
+                
+                # Use POST method and handle data with timeout and SSL verification
+                response = requests.post(url, headers=headers, data=data, verify=True, timeout=10)
+                # Don't return the full response to prevent information disclosure
+                output = f"SSRF Response: Request completed successfully. Status: {response.status_code}"
+            except Exception as e:
+                output = f"SSRF Error: {e}"
 
     # 8 - SQL injection with parameter instead of whole query
     elif 'username' in request.form:
