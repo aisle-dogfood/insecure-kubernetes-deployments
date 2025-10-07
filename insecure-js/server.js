@@ -169,14 +169,25 @@ const server = http.createServer((req, res) => {
           );
         }
 
-        // Lodash Template Vulnerability
+        // Lodash Template Vulnerability - FIXED
         if (postData.template) {
           const index = responseMessages.length;
           responseMessages.push(`<h3>4. Lodash Template Vulnerability</h3>`); // Add header immediately
           asyncTasks.push(
             (async () => {
               try {
-                const compiled = _.template(postData.template);
+                // Sanitize template input by removing dangerous constructs
+                const sanitizedTemplate = postData.template
+                  .replace(/<%[\s\S]*?%>/g, '') // Remove all template execution blocks
+                  .replace(/<%=[\s\S]*?%>/g, '') // Remove all template interpolation blocks
+                  .replace(/<%\-[\s\S]*?%>/g, ''); // Remove all template escape blocks
+                
+                // Use safe template options that disable code execution
+                const compiled = _.template(sanitizedTemplate, {
+                  interpolate: false, // Disable interpolation
+                  evaluate: false,    // Disable code evaluation
+                  escape: false       // Disable HTML escaping (since we're removing template blocks anyway)
+                });
                 const output = compiled({});
                 console.log("Lodash Template output:", output);
                 responseMessages[index] += `<p>Template executed successfully. Output logged on the server.</p>`;
