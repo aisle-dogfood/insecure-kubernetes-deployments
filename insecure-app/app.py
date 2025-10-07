@@ -1,5 +1,6 @@
 from flask import Flask, request, render_template, jsonify, redirect, url_for
 import subprocess
+import shlex
 import os
 import sqlite3
 import requests
@@ -80,7 +81,7 @@ def result():
     # 2 - Command Injection
     if 'command' in request.form:
         cmd = request.form['command']
-        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(shlex.split(cmd), shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
         if process.returncode == 0:
             output = stdout.decode('utf-8')
