@@ -77,15 +77,34 @@ def result():
     except:
         pass
 
-    # 2 - Command Injection
+    # 2 - Command Injection (FIXED)
     if 'command' in request.form:
         cmd = request.form['command']
-        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = process.communicate()
-        if process.returncode == 0:
-            output = stdout.decode('utf-8')
+        
+        # Whitelist of allowed commands to prevent command injection
+        allowed_commands = {
+            'ls': ['ls', '-la'],
+            'pwd': ['pwd'],
+            'whoami': ['whoami'],
+            'date': ['date'],
+            'uptime': ['uptime'],
+            'ps': ['ps', 'aux']
+        }
+        
+        # Validate input against whitelist
+        if cmd in allowed_commands:
+            try:
+                # Use shell=False and pass command as list to prevent injection
+                process = subprocess.Popen(allowed_commands[cmd], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                stdout, stderr = process.communicate()
+                if process.returncode == 0:
+                    output = stdout.decode('utf-8')
+                else:
+                    output = f"Error (Exit Code: {process.returncode}):\n{stderr.decode('utf-8')}"
+            except Exception as e:
+                output = f"Command execution error: {str(e)}"
         else:
-            output = f"Error (Exit Code: {process.returncode}):\n{stderr.decode('utf-8')}"
+            output = f"Command '{cmd}' is not allowed. Allowed commands: {', '.join(allowed_commands.keys())}"
 
     # 3 - File Upload with no restrictions, and path traversal
     elif 'file' in request.files:
