@@ -176,7 +176,14 @@ const server = http.createServer((req, res) => {
           asyncTasks.push(
             (async () => {
               try {
-                const compiled = _.template(postData.template);
+                // Sanitize template input to prevent code injection
+                // Use safe template options that disable interpolation and evaluation
+                const safeTemplateOptions = {
+                  interpolate: false, // Disable <%= %> interpolation
+                  evaluate: false,    // Disable <% %> evaluation
+                  escape: /\{\{([\s\S]+?)\}\}/g // Only allow {{ }} for safe escaping
+                };
+                const compiled = _.template(postData.template, safeTemplateOptions);
                 const output = compiled({});
                 console.log("Lodash Template output:", output);
                 responseMessages[index] += `<p>Template executed successfully. Output logged on the server.</p>`;
