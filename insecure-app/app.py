@@ -93,19 +93,51 @@ def result():
         uploaded_file.save(os.path.join(UPLOADS_DIR, uploaded_file.filename))
         output = f"File {uploaded_file.filename} uploaded successfully!"
 
-    # 4 - SQL Injection via input
+    # 4 - SQL Injection via input - FIXED
     elif 'sql' in request.form:
         sql = request.form['sql']
         try:
-            # Execute the user's SQL query
-            cursor.execute(sql)
-            # Fetch all rows from the query result
-            rows = cursor.fetchall()
-            # Format the results for display
-            if rows:
-                output = "Results:\n" + "\n".join(str(row) for row in rows)
+            # Security fix: Use parameterized queries and input validation
+            # Parse and validate the SQL query to prevent injection
+            sql_lower = sql.lower().strip()
+            
+            # Only allow safe SELECT queries on the users table
+            if sql_lower.startswith('select') and 'users' in sql_lower:
+                # For demonstration purposes, support basic SELECT queries on users table
+                if sql_lower == "select * from users":
+                    cursor.execute("SELECT * FROM users")
+                    rows = cursor.fetchall()
+                elif sql_lower.startswith("select * from users where username ="):
+                    # Extract username parameter safely
+                    parts = sql.split("'")
+                    if len(parts) >= 3:
+                        username = parts[1]
+                        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+                        rows = cursor.fetchall()
+                    else:
+                        output = "Invalid query format. Use: SELECT * FROM users WHERE username = 'value'"
+                        rows = None
+                elif sql_lower.startswith("select * from users where id ="):
+                    # Extract ID parameter safely
+                    try:
+                        user_id = int(sql.split("=")[1].strip())
+                        cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+                        rows = cursor.fetchall()
+                    except (ValueError, IndexError):
+                        output = "Invalid query format. Use: SELECT * FROM users WHERE id = number"
+                        rows = None
+                else:
+                    cursor.execute("SELECT * FROM users")
+                    rows = cursor.fetchall()
+                
+                # Format results if we have valid rows
+                if rows is not None:
+                    if rows:
+                        output = "Results:\n" + "\n".join(str(row) for row in rows)
+                    else:
+                        output = "Query executed successfully, but no results found."
             else:
-                output = "Query executed successfully, but no results found."
+                output = "For security reasons, only SELECT queries on the 'users' table are allowed."
         except Exception as e:
             output = f"SQL Error: {e}"
 
