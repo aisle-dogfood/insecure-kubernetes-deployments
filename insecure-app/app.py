@@ -77,15 +77,29 @@ def result():
     except:
         pass
 
-    # 2 - Command Injection
+    # 2 - Command Injection (Fixed)
     if 'command' in request.form:
         cmd = request.form['command']
-        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = process.communicate()
-        if process.returncode == 0:
-            output = stdout.decode('utf-8')
+        
+        # Input validation: only allow safe commands
+        allowed_commands = ['ls', 'pwd', 'whoami', 'date', 'echo']
+        cmd_parts = cmd.split()
+        
+        if not cmd_parts or cmd_parts[0] not in allowed_commands:
+            output = "Error: Command not allowed. Only the following commands are permitted: " + ", ".join(allowed_commands)
         else:
-            output = f"Error (Exit Code: {process.returncode}):\n{stderr.decode('utf-8')}"
+            try:
+                # Use shell=False and pass arguments as a list to prevent command injection
+                process = subprocess.Popen(cmd_parts, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                stdout, stderr = process.communicate()
+                if process.returncode == 0:
+                    output = stdout.decode('utf-8')
+                else:
+                    output = f"Error (Exit Code: {process.returncode}):\n{stderr.decode('utf-8')}"
+            except FileNotFoundError:
+                output = "Error: Command not found"
+            except Exception as e:
+                output = f"Error: {str(e)}"
 
     # 3 - File Upload with no restrictions, and path traversal
     elif 'file' in request.files:
