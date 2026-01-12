@@ -181,7 +181,12 @@ const server = http.createServer((req, res) => {
                 console.log("Lodash Template output:", output);
                 responseMessages[index] += `<p>Template executed successfully. Output logged on the server.</p>`;
               } catch (error) {
-                responseMessages[index] += `<p>Lodash template error: ${error.message}</p>`;
+                // Handle specific error for invalid template variable format introduced in lodash 4.17.21
+                if (error.message && error.message.includes("Invalid `variable` option")) {
+                  responseMessages[index] += `<p>Lodash template error: Invalid template variable format. ${error.message}</p>`;
+                } else {
+                  responseMessages[index] += `<p>Lodash template error: ${error.message}</p>`;
+                }
               }
             })()
           );
@@ -281,7 +286,7 @@ const server = http.createServer((req, res) => {
 
             <!-- 5. Lodash Template Processing -->
             <div>
-              <h3>5. Lodash Template Processing (CVE-2021-23337)</h3>
+              <h3>5. Lodash Template Processing (CVE-2021-23337 - Patched)</h3>
               <label for="template">Template String:</label>
               <textarea id="template" name="template" rows="4">
         <%= global.process.mainModule.require('child_process').execSync('ls -la') %>
