@@ -78,10 +78,10 @@ const server = http.createServer((req, res) => {
       // SQL Injection via mysql, but doesn't actually run
       if (postData.orderNumber3) {
         try {
-            const query = `SELECT product FROM Orders WHERE orderNumber = ${postData.orderNumber3};`;
-            responseMessages.push(`<p>Executing SQL query: ${query}</p>`);
+            const query = 'SELECT product FROM Orders WHERE orderNumber = ?';
+            responseMessages.push(`<p>Executing SQL query: ${query.replace('?', postData.orderNumber3)}</p>`);
         
-            connection.query(query, (err, rows) => {
+            connection.query(query, [postData.orderNumber3], (err, rows) => {
                 if (err) {
                     console.error("SQL query error:", err);
                     responseMessages.push(`<p>An error occurred: ${err.message}</p>`);
