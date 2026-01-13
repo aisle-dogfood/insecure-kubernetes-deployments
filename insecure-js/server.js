@@ -114,8 +114,12 @@ const server = http.createServer((req, res) => {
           asyncTasks.push(
             (async () => {
               try {
-                const query = `SELECT product FROM Orders WHERE orderNumber = ${postData.orderNumber};`;
-                const result = await sequelize.query(query, { type: sequelize.QueryTypes.SELECT });
+                const result = await sequelize.query(
+                  'SELECT product FROM Orders WHERE orderNumber = ?',
+                  {
+                    replacements: [postData.orderNumber],
+                    type: sequelize.QueryTypes.SELECT
+                  });
                 responseMessages[index] += result.length > 0
                   ? `<p>Order details: <pre>${JSON.stringify(result, null, 2)}</pre></p>`
                   : `<p>No orders found for order number ${postData.orderNumber}</p>`;
@@ -155,7 +159,9 @@ const server = http.createServer((req, res) => {
             (async () => {
               try {
                 const users = await User.findAll({
-                  where: sequelize.literal(`username = "${postData.username}"`),
+                  where: {
+                    username: postData.username
+                  },
                 });
                 responseMessages[index] += users.length > 0
                   ? `<p>Users found: <ul>${users
