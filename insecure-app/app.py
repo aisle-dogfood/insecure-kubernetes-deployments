@@ -80,12 +80,37 @@ def result():
     # 2 - Command Injection
     if 'command' in request.form:
         cmd = request.form['command']
-        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = process.communicate()
-        if process.returncode == 0:
-            output = stdout.decode('utf-8')
+        # Define a whitelist of allowed commands
+        allowed_commands = {
+            'ls': ['-l', '-la', '-a'],
+            'cat': [],
+            'echo': [],
+            'pwd': []
+        }
+        
+        # Parse the command and arguments
+        cmd_parts = cmd.split()
+        if not cmd_parts:
+            output = "Error: No command provided"
         else:
-            output = f"Error (Exit Code: {process.returncode}):\n{stderr.decode('utf-8')}"
+            base_cmd = cmd_parts[0]
+            args = cmd_parts[1:] if len(cmd_parts) > 1 else []
+            
+            # Check if the command is in the whitelist
+            if base_cmd in allowed_commands:
+                # Validate arguments if the command has a restricted argument list
+                if allowed_commands[base_cmd] and not all(arg in allowed_commands[base_cmd] for arg in args):
+                    output = f"Error: One or more arguments not allowed for command '{base_cmd}'"
+                else:
+                    # Execute the command with arguments as a list (no shell=True)
+                    process = subprocess.Popen([base_cmd] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    stdout, stderr = process.communicate()
+                    if process.returncode == 0:
+                        output = stdout.decode('utf-8')
+                    else:
+                        output = f"Error (Exit Code: {process.returncode}):\n{stderr.decode('utf-8')}"
+            else:
+                output = f"Error: Command '{base_cmd}' is not allowed"
 
     # 3 - File Upload with no restrictions, and path traversal
     elif 'file' in request.files:
