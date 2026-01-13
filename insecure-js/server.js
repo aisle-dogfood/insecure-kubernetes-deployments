@@ -181,7 +181,13 @@ const server = http.createServer((req, res) => {
                 console.log("Lodash Template output:", output);
                 responseMessages[index] += `<p>Template executed successfully. Output logged on the server.</p>`;
               } catch (error) {
-                responseMessages[index] += `<p>Lodash template error: ${error.message}</p>`;
+                // Check if the error is related to the stricter validation in lodash 4.17.21
+                if (error.message && error.message.includes("invalid template")) {
+                  responseMessages[index] += `<p>Lodash template error: Invalid template syntax. The newer version of lodash has stricter validation for template strings.</p>`;
+                  console.error("Template validation error:", error.message);
+                } else {
+                  responseMessages[index] += `<p>Lodash template error: ${error.message}</p>`;
+                }
               }
             })()
           );
