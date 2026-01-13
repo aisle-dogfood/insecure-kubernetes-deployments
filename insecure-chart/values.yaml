@@ -42,7 +42,17 @@ insecureApp:
   ports:
     http: 8080
     ssh: 22
+  # AWS credentials configuration
+  awsCredentials:
+    secretName: aws-credentials
 
+# AWS credentials configuration
+# In production, do NOT set these values in values.yaml
+# Instead, use --set aws.accessKeyId=YOUR_KEY --set aws.secretAccessKey=YOUR_SECRET during helm install/upgrade
+# or use a secrets management solution like Vault, AWS Secrets Manager, or Kubernetes external secrets
+aws:
+  accessKeyId: ""  # Leave empty, provide during deployment
+  secretAccessKey: ""  # Leave empty, provide during deployment
 workloadSecurityEvaluator:
   namespace: workload-security
   appName: workload-security-evaluator
