@@ -67,14 +67,16 @@ def app_route():
 @app.route('/result', methods=['POST'])
 def result():
     output = ''
-    # 1 - SQL Injection
     db = sqlite3.connect(DB_PATH)
     cursor = db.cursor()
     username = ''
     password = ''
     try:
-        cursor.execute("SELECT * FROM users WHERE username = '%s' AND password = '%s'" % (username, password))
-    except:
+        cursor.execute(
+            "SELECT * FROM users WHERE username = ? AND password = ?",
+            (username, password),
+        )
+    except Exception:
         pass
 
     # 2 - Command Injection
@@ -93,21 +95,24 @@ def result():
         uploaded_file.save(os.path.join(UPLOADS_DIR, uploaded_file.filename))
         output = f"File {uploaded_file.filename} uploaded successfully!"
 
-    # 4 - SQL Injection via input
+    # 4 - Safe user lookup using a parameterized query
     elif 'sql' in request.form:
-        sql = request.form['sql']
-        try:
-            # Execute the user's SQL query
-            cursor.execute(sql)
-            # Fetch all rows from the query result
-            rows = cursor.fetchall()
-            # Format the results for display
-            if rows:
-                output = "Results:\n" + "\n".join(str(row) for row in rows)
-            else:
-                output = "Query executed successfully, but no results found."
-        except Exception as e:
-            output = f"SQL Error: {e}"
+        username_lookup = request.form['sql'].strip()
+        if not username_lookup:
+            output = "Please provide a username to search for."
+        else:
+            try:
+                cursor.execute(
+                    "SELECT id, username FROM users WHERE username = ?",
+                    (username_lookup,),
+                )
+                rows = cursor.fetchall()
+                if rows:
+                    output = "Results:\n" + "\n".join(str(row) for row in rows)
+                else:
+                    output = "User not found."
+            except Exception as e:
+                output = f"SQL Error: {e}"
 
     # 5 - Cross-Site Scripting (XSS)
     elif 'xss' in request.form:
@@ -159,6 +164,7 @@ def result():
         except Exception as e:
             output = f"SQL Error: {e}"
 
+    db.close()
     return render_template('result.html', output=output, script_name=SCRIPT_NAME)
 
 # Mount the Flask app under /app

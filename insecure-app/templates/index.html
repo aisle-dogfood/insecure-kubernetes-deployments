@@ -24,10 +24,10 @@
 </div>
 
 <div class="vulnerability-section">
-    <h2>SQL Injection</h2>
+    <h2>User Lookup</h2>
     <form action="{{ form_action }}" method="post">
-        <input type="text" name="sql" value="SELECT * FROM users WHERE username = 'admin' OR '1'='1'" placeholder="Enter your SQL query...">
-        <input type="submit" value="Execute Query">
+        <input type="text" name="sql" value="admin" placeholder="Enter a username...">
+        <input type="submit" value="Search User">
     </form>
 </div>
 
